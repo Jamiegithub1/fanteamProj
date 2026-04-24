@@ -137,6 +137,88 @@ h1 {
   min-width: min(320px, 100%);
 }
 
+.section-heading {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.section-heading h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.section-heading span {
+  color: #64737b;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.source-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.source-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.source-card {
+  background: white;
+  border: 1px solid #d6dee2;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.source-card-top {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.source-card-top strong {
+  font-size: 0.98rem;
+}
+
+.source-card-top span {
+  background: #eef2f3;
+  border-radius: 999px;
+  color: #4c5960;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+.source-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.source-card dt {
+  color: #64737b;
+  font-size: 0.7rem;
+  font-weight: 800;
+  margin: 0 0 2px;
+  text-transform: uppercase;
+}
+
+.source-card dd {
+  color: #2f3d44;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.35;
+  margin: 0;
+  white-space: normal;
+}
+
 .table-wrap {
   background: white;
   border: 1px solid #d6dee2;
@@ -146,7 +228,7 @@ h1 {
 
 table {
   border-collapse: collapse;
-  min-width: 1120px;
+  min-width: 1280px;
   width: 100%;
 }
 
@@ -196,6 +278,10 @@ tr:hover td:first-child {
 .player-cell,
 .strong {
   font-weight: 800;
+}
+
+.total-cell {
+  color: #16734f;
 }
 
 .empty-state {

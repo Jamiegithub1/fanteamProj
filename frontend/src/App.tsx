@@ -34,12 +34,27 @@ type SourceHealth = {
   latency_ms: number | null;
 };
 
+type SourceCatalogEntry = {
+  key: string;
+  name: string;
+  role: string;
+  status: string;
+  cost: string;
+  access: string;
+  coverage: string;
+  server_load: string;
+  reliability_notes: string;
+  implementation_notes: string;
+  priority: number;
+};
+
 function App() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>("checking");
   const [authToken, setAuthToken] = useState(() => localStorage.getItem("fantasy-auth-token") ?? "");
   const [loginError, setLoginError] = useState("");
   const [projections, setProjections] = useState<Projection[]>([]);
   const [sourceHealth, setSourceHealth] = useState<SourceHealth[]>([]);
+  const [sourceCatalog, setSourceCatalog] = useState<SourceCatalogEntry[]>([]);
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
@@ -72,6 +87,11 @@ function App() {
       .then((response) => (response.ok ? response.json() : []))
       .then(setSourceHealth)
       .catch(() => setSourceHealth([]));
+
+    apiFetch("/sources/catalog")
+      .then((response) => (response.ok ? response.json() : []))
+      .then(setSourceCatalog)
+      .catch(() => setSourceCatalog([]));
   };
 
   useEffect(() => {
@@ -214,6 +234,37 @@ function App() {
         </select>
       </section>
 
+      <section className="source-panel" aria-label="Source quality plan">
+        <div className="section-heading">
+          <h2>Sources</h2>
+          <span>{sourceCatalog.length} evaluated</span>
+        </div>
+        <div className="source-grid">
+          {sourceCatalog.map((source) => (
+            <article className="source-card" key={source.key}>
+              <div className="source-card-top">
+                <strong>{source.name}</strong>
+                <span>{source.status.replace(/_/g, " ")}</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>Coverage</dt>
+                  <dd>{source.coverage}</dd>
+                </div>
+                <div>
+                  <dt>Access</dt>
+                  <dd>{source.access}</dd>
+                </div>
+                <div>
+                  <dt>Load</dt>
+                  <dd>{source.server_load}</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="table-wrap" aria-label="Projection table">
         <table>
           <thead>
@@ -221,18 +272,18 @@ function App() {
               <th>Player</th>
               <th>Team</th>
               <th>Date</th>
-              <th>FP</th>
-              <th>PTS</th>
+              <th>Points</th>
               <th>3PM</th>
-              <th>REB</th>
-              <th>AST</th>
-              <th>STL</th>
-              <th>BLK</th>
-              <th>TO</th>
-              <th>DD</th>
-              <th>TD</th>
-              <th>Src</th>
-              <th>Conf</th>
+              <th>Rebounds</th>
+              <th>Assists</th>
+              <th>Steals</th>
+              <th>Blocks</th>
+              <th>Turnovers</th>
+              <th>Double-Double</th>
+              <th>Triple-Double</th>
+              <th>Sources</th>
+              <th>Confidence</th>
+              <th>Total Proj</th>
             </tr>
           </thead>
           <tbody>
@@ -248,7 +299,6 @@ function App() {
                   <td className="player-cell">{projection.player_name}</td>
                   <td>{projection.team ?? "-"}</td>
                   <td>{projection.projection_date}</td>
-                  <td className="strong">{formatNumber(projection.fantasy_points)}</td>
                   <td>{formatNumber(projection.points)}</td>
                   <td>{formatNumber(projection.threes_made)}</td>
                   <td>{formatNumber(projection.rebounds)}</td>
@@ -260,6 +310,7 @@ function App() {
                   <td>{formatPercent(projection.triple_double_probability)}</td>
                   <td>{projection.source_count}</td>
                   <td>{formatPercent(projection.confidence_score)}</td>
+                  <td className="strong total-cell">{formatNumber(projection.fantasy_points)}</td>
                 </tr>
               ))
             )}

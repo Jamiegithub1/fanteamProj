@@ -11,6 +11,7 @@ from app.models import AggregatedOdd, Bookmaker, Player, Projection, SourceHealt
 from app.projections import refresh_projections
 from app.scheduler import RefreshScheduler
 from app.security import require_auth
+from app.source_catalog import SOURCE_CATALOG
 from app.source_runner import refresh_source
 from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
@@ -64,6 +65,26 @@ def sources_health(_: str = Depends(require_auth)) -> list[dict[str, str | int |
             }
             for bookmaker, health in rows
         ]
+
+
+@app.get("/sources/catalog")
+def sources_catalog(_: str = Depends(require_auth)) -> list[dict[str, str | int]]:
+    return [
+        {
+            "key": source.key,
+            "name": source.name,
+            "role": source.role,
+            "status": source.status,
+            "cost": source.cost,
+            "access": source.access,
+            "coverage": source.coverage,
+            "server_load": source.server_load,
+            "reliability_notes": source.reliability_notes,
+            "implementation_notes": source.implementation_notes,
+            "priority": source.priority,
+        }
+        for source in SOURCE_CATALOG
+    ]
 
 
 @app.get("/projections")

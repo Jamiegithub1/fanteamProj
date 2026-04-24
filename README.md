@@ -87,6 +87,12 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Stabilitaetschecks fuer Tests, Frontend-Build, Docker Compose und Auth
 - Degraded Quellen crashen die App nicht und werden in Source Health sichtbar
 
+## Aktuelle Vertiefung
+
+- Projection-Tabelle zeigt pro Spieler alle Stat-Spalten und Total Proj am Ende
+- Quellenstrategie mit 5 priorisierten Quellen unter `docs/source-strategy.md`
+- Quellenkatalog im Backend unter `/sources/catalog`
+
 ## Lokal starten
 
 ```bash
