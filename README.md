@@ -75,6 +75,12 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Frontend Login-Screen mit Logout
 - Healthchecks bleiben fuer Docker lokal erreichbar
 
+## M11 Status
+
+- Docker Compose mit Restart-Policies und Backend-Healthcheck
+- Frontend wartet auf gesunden Backend-Service
+- Lokale Deployment-Doku unter `docs/deployment-local.md`
+
 ## Lokal starten
 
 ```bash

@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-fantasy}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fantasy_dev_password}
@@ -18,11 +19,15 @@ services:
   backend:
     build:
       context: ./backend
+    restart: unless-stopped
     env_file:
       - path: .env
         required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://fantasy:fantasy_dev_password@db:5432/fantasy_odds}
+      APP_USERNAME: ${APP_USERNAME:-admin}
+      APP_PASSWORD: ${APP_PASSWORD:-change-me}
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
     ports:
       - "8000:8000"
     depends_on:
@@ -31,10 +36,16 @@ services:
     volumes:
       - ./backend/app:/app/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build:
       context: ./frontend
+    restart: unless-stopped
     env_file:
       - path: .env
         required: false
@@ -43,7 +54,8 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/index.html:/app/index.html
