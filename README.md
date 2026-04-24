@@ -92,6 +92,7 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Projection-Tabelle zeigt pro Spieler alle Stat-Spalten und Total Proj am Ende
 - Quellenstrategie mit 5 priorisierten Quellen unter `docs/source-strategy.md`
 - Quellenkatalog im Backend unter `/sources/catalog`
+- BALLDONTLIE, PropLine und BetMGM sind als sichere Adapter vorbereitet und bleiben ohne ENV-Keys sauber `degraded`
 
 ## Lokal starten
 

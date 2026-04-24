@@ -42,7 +42,7 @@ Why it fits: unlike most major US books, BetMGM has public Sports API documentat
 
 Risk: player-prop completeness is not proven until we inspect live NBA fixture markets. The adapter should start as discovery-only, then become a raw-odds adapter once market names are confirmed.
 
-Decision: build next direct-book candidate after the API-key aggregate sources, or sooner if we want a no-key direct source.
+Decision: adapter is now implemented behind `BETMGM_ENABLED`, `BETMGM_ACCESS_ID`, `BETMGM_ACCESS_TOKEN`, and `BETMGM_SPORT_ID`. It will stay degraded until credentials and the NBA sport id are configured.
 
 ### 4. PropLine
 
@@ -50,7 +50,7 @@ Role: recommended multi-book player-prop API.
 
 Why it fits: free tier advertises 500 requests per day, 90-second refreshes, and multiple books in one response: Bovada, DraftKings, FanDuel, Pinnacle, plus PrizePicks-style projections. NBA markets include points, rebounds, assists, threes, PRA, and double-double.
 
-Decision: strong second API source, especially for line shopping and redundancy.
+Decision: adapter is now implemented behind `PROPLINE_ENABLED` and `PROPLINE_API_KEY`. It maps book rows such as FanDuel and Pinnacle into true bookmaker records.
 
 ### 5. SportsGameOdds
 
@@ -122,3 +122,21 @@ Decision: source ESPN BET only through an aggregator.
 4. Add PropLine adapter as the second complete multi-book source.
 5. Add SportsGameOdds if free quota is practical.
 6. Add SharpAPI only as fallback or source-health redundancy.
+
+## ENV Needed For Live Odds
+
+The app is ready to ingest real live odds as soon as credentials are configured:
+
+- BALLDONTLIE:
+  - `BALLDONTLIE_ENABLED=true`
+  - `BALLDONTLIE_API_KEY=...`
+- PropLine:
+  - `PROPLINE_ENABLED=true`
+  - `PROPLINE_API_KEY=...`
+- BetMGM:
+  - `BETMGM_ENABLED=true`
+  - `BETMGM_ACCESS_ID=...`
+  - `BETMGM_ACCESS_TOKEN=...`
+  - `BETMGM_SPORT_ID=...`
+
+Without those values, the adapters deliberately write `degraded` source-health rows instead of failing the app. This is intentional: broken or missing sources must not crash the local web app.

@@ -19,6 +19,17 @@ docker compose up -d --build
 - `APP_PASSWORD`
 - `DATABASE_URL`
 
+## Optional Live Odds ENV
+
+- `BALLDONTLIE_ENABLED`
+- `BALLDONTLIE_API_KEY`
+- `PROPLINE_ENABLED`
+- `PROPLINE_API_KEY`
+- `BETMGM_ENABLED`
+- `BETMGM_ACCESS_ID`
+- `BETMGM_ACCESS_TOKEN`
+- `BETMGM_SPORT_ID`
+
 Use strong values in `.env` on the server. `.env.example` only contains local placeholders.
 
 ## Resource Notes

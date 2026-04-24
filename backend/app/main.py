@@ -14,8 +14,10 @@ from app.security import require_auth
 from app.source_catalog import SOURCE_CATALOG
 from app.source_runner import refresh_source
 from app.sources.balldontlie import BallDontLieAdapter
+from app.sources.betmgm import BetMGMAdapter
 from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
+from app.sources.propline import PropLineAdapter
 
 settings = get_settings()
 scheduler = RefreshScheduler(settings)
@@ -158,6 +160,32 @@ def refresh_draftkings(_: str = Depends(require_auth)) -> dict[str, str | int | 
 def refresh_balldontlie(_: str = Depends(require_auth)) -> dict[str, str | int | None]:
     with get_session() as session:
         result = refresh_source(session, BallDontLieAdapter(settings=settings))
+        return {
+            "source": result.source_key,
+            "status": result.status,
+            "rows_found": len(result.odds),
+            "latency_ms": result.latency_ms,
+            "message": result.message,
+        }
+
+
+@app.post("/sources/propline/refresh")
+def refresh_propline(_: str = Depends(require_auth)) -> dict[str, str | int | None]:
+    with get_session() as session:
+        result = refresh_source(session, PropLineAdapter(settings=settings))
+        return {
+            "source": result.source_key,
+            "status": result.status,
+            "rows_found": len(result.odds),
+            "latency_ms": result.latency_ms,
+            "message": result.message,
+        }
+
+
+@app.post("/sources/betmgm/refresh")
+def refresh_betmgm(_: str = Depends(require_auth)) -> dict[str, str | int | None]:
+    with get_session() as session:
+        result = refresh_source(session, BetMGMAdapter(settings=settings))
         return {
             "source": result.source_key,
             "status": result.status,

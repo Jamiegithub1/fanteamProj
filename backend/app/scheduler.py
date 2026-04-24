@@ -15,8 +15,10 @@ from app.models import Game
 from app.projections import refresh_projections
 from app.source_runner import refresh_source
 from app.sources.balldontlie import BallDontLieAdapter
+from app.sources.betmgm import BetMGMAdapter
 from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
+from app.sources.propline import PropLineAdapter
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,8 @@ def _refresh_sources(session: Session, settings: Settings) -> int:
     adapters = [
         PlayzillaAdapter(settings=settings),
         BallDontLieAdapter(settings=settings),
+        PropLineAdapter(settings=settings),
+        BetMGMAdapter(settings=settings),
         DraftKingsAdapter(settings=settings),
     ]
     for adapter in adapters:
