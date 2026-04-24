@@ -54,6 +54,13 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Projektionen werden in `projections` gespeichert
 - Projection-Refresh unter `/projections/refresh`
 
+## M8 Status
+
+- Leichter Background Scheduler ohne schwere Zusatzdienste
+- 30-Minuten-Refresh, 5-Minuten-Prelock-Intervall
+- Globaler Lock gegen parallele Refreshes
+- Manueller Gesamtrefresh unter `/refresh/run`
+
 ## Lokal starten
 
 ```bash

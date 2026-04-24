@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     draftkings_refresh_interval_seconds: int = Field(
         default=900, validation_alias="DRAFTKINGS_REFRESH_INTERVAL_SECONDS"
     )
+    scheduler_enabled: bool = Field(default=True, validation_alias="SCHEDULER_ENABLED")
+    scheduler_regular_interval_seconds: int = Field(default=1800, validation_alias="SCHEDULER_REGULAR_INTERVAL_SECONDS")
+    scheduler_prelock_interval_seconds: int = Field(default=300, validation_alias="SCHEDULER_PRELOCK_INTERVAL_SECONDS")
+    scheduler_initial_delay_seconds: int = Field(default=30, validation_alias="SCHEDULER_INITIAL_DELAY_SECONDS")
+    scheduler_prelock_window_minutes: int = Field(default=60, validation_alias="SCHEDULER_PRELOCK_WINDOW_MINUTES")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
