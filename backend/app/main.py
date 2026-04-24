@@ -2,12 +2,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.aggregation import refresh_aggregated_odds
 from app.config import get_settings
 from app.db import database_ready, get_session
-from app.models import Bookmaker, SourceHealth
+from app.models import AggregatedOdd, Bookmaker, Player, Projection, SourceHealth, Team
 from app.projections import refresh_projections
 from app.scheduler import RefreshScheduler
 from app.source_runner import refresh_source
@@ -65,6 +65,46 @@ def sources_health() -> list[dict[str, str | int | None]]:
         ]
 
 
+@app.get("/projections")
+def list_projections() -> list[dict[str, str | int | float | None]]:
+    with get_session() as session:
+        source_counts = dict(
+            session.execute(
+                select(AggregatedOdd.player_id, func.coalesce(func.sum(AggregatedOdd.source_count), 0)).group_by(
+                    AggregatedOdd.player_id
+                )
+            ).all()
+        )
+        rows = session.execute(
+            select(Projection, Player, Team)
+            .join(Player, Projection.player_id == Player.id)
+            .outerjoin(Team, Player.team_id == Team.id)
+            .order_by(Projection.fantasy_points.desc())
+        ).all()
+        return [
+            {
+                "player_id": player.id,
+                "player_name": player.name,
+                "team": team.abbreviation if team else None,
+                "projection_date": projection.projection_date.isoformat(),
+                "points": _float(projection.points),
+                "threes_made": _float(projection.threes_made),
+                "rebounds": _float(projection.rebounds),
+                "assists": _float(projection.assists),
+                "steals": _float(projection.steals),
+                "blocks": _float(projection.blocks),
+                "turnovers": _float(projection.turnovers),
+                "double_double_probability": _float(projection.double_double_probability),
+                "triple_double_probability": _float(projection.triple_double_probability),
+                "fantasy_points": _float(projection.fantasy_points),
+                "confidence_score": _float(projection.confidence_score),
+                "source_count": int(source_counts.get(player.id, 0)),
+                "calculated_at": projection.calculated_at.isoformat(),
+            }
+            for projection, player, team in rows
+        ]
+
+
 @app.post("/sources/playzilla/refresh")
 def refresh_playzilla() -> dict[str, str | int | None]:
     with get_session() as session:
@@ -116,3 +156,7 @@ async def run_refresh_cycle() -> dict[str, int | str]:
         "aggregation_rows": summary.aggregation_rows,
         "projection_rows": summary.projection_rows,
     }
+
+
+def _float(value) -> float | None:
+    return float(value) if value is not None else None

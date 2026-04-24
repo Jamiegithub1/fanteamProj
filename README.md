@@ -61,6 +61,13 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Globaler Lock gegen parallele Refreshes
 - Manueller Gesamtrefresh unter `/refresh/run`
 
+## M9 Status
+
+- Benutzbares Projection Dashboard im React-Frontend
+- Suche, Datum-/Teamfilter und nach Fantasy-Punkten sortierte Tabelle
+- Source-Health-Anzeige mit Status und Latenz
+- Refresh Button fuer den kompletten Backend-Zyklus
+
 ## Lokal starten
 
 ```bash
