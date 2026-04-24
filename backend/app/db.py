@@ -2,12 +2,35 @@ from contextlib import contextmanager
 from typing import Iterator
 
 import psycopg
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
 
 
 def psycopg_url() -> str:
     return get_settings().database_url.replace("postgresql+psycopg://", "postgresql://", 1)
+
+
+def sqlalchemy_url() -> str:
+    return get_settings().database_url
+
+
+engine = create_engine(sqlalchemy_url(), pool_pre_ping=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+
+@contextmanager
+def get_session() -> Iterator[Session]:
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 @contextmanager

@@ -10,6 +10,12 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - `.env.example` fuer lokale Konfiguration
 - Dockerfiles fuer Backend und Frontend
 
+## M2 Status
+
+- SQLAlchemy Datenmodell fuer alle Phase-1-Entities
+- Alembic Migration fuer PostgreSQL
+- Source-Health- und Refresh-Run-Tabellen fuer robuste Scraper
+
 ## Lokal starten
 
 ```bash
@@ -28,11 +34,17 @@ Danach erreichbar:
 Backend:
 
 ```bash
-cd backend
 python3 -m venv .venv
 . .venv/bin/activate
-pip install -r requirements-dev.txt
+pip install -r backend/requirements-dev.txt
 pytest
+```
+
+Migration:
+
+```bash
+cd backend
+../.venv/bin/alembic upgrade head
 ```
 
 Frontend:
@@ -45,4 +57,4 @@ npm run build
 
 ## Konfiguration
 
-Login-/Passwort- und Datenbankwerte werden ueber ENV gesetzt. Fuer M1 ist nur die lokale PostgreSQL-Verbindung vorbereitet; Scraper und Auth folgen in spaeteren Meilensteinen.
+Login-/Passwort- und Datenbankwerte werden ueber ENV gesetzt. Scraper und Auth folgen in spaeteren Meilensteinen.
