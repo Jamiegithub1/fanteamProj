@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
+from app.aggregation import refresh_aggregated_odds
 from app.config import get_settings
 from app.db import database_ready, get_session
 from app.models import Bookmaker, SourceHealth
@@ -73,3 +74,10 @@ def refresh_draftkings() -> dict[str, str | int | None]:
             "latency_ms": result.latency_ms,
             "message": result.message,
         }
+
+
+@app.post("/aggregations/refresh")
+def refresh_aggregations() -> dict[str, int]:
+    with get_session() as session:
+        summary = refresh_aggregated_odds(session)
+        return {"groups_seen": summary.groups_seen, "rows_written": summary.rows_written}

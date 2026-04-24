@@ -40,6 +40,13 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Weitere Buchmacher bewertet und schwere/instabile Scraper bewusst uebersprungen
 - DraftKings-Refresh unter `/sources/draftkings/refresh`
 
+## M6 Status
+
+- Aggregation von `raw_odds` zu `aggregated_odds`
+- Vig-Entfernung pro Bookmaker bei Over/Under- und Yes/No-Paaren
+- Konsens-Wahrscheinlichkeiten, Expected Values und Confidence Score
+- Aggregations-Refresh unter `/aggregations/refresh`
+
 ## Lokal starten
 
 ```bash
