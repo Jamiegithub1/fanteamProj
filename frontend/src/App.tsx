@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import "./styles.css";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -36,6 +36,8 @@ type SourceHealth = {
 
 function App() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>("checking");
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem("fantasy-auth-token") ?? "");
+  const [loginError, setLoginError] = useState("");
   const [projections, setProjections] = useState<Projection[]>([]);
   const [sourceHealth, setSourceHealth] = useState<SourceHealth[]>([]);
   const [search, setSearch] = useState("");
@@ -43,17 +45,30 @@ function App() {
   const [teamFilter, setTeamFilter] = useState("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const apiFetch = (path: string, init: RequestInit = {}) =>
+    fetch(`${apiBaseUrl}${path}`, {
+      ...init,
+      headers: {
+        ...(init.headers ?? {}),
+        ...(authToken ? { Authorization: `Basic ${authToken}` } : {}),
+      },
+    });
+
   const loadData = () => {
     fetch(`${apiBaseUrl}/health`)
       .then((response) => setApiStatus(response.ok ? "online" : "offline"))
       .catch(() => setApiStatus("offline"));
 
-    fetch(`${apiBaseUrl}/projections`)
+    if (!authToken) {
+      return;
+    }
+
+    apiFetch("/projections")
       .then((response) => (response.ok ? response.json() : []))
       .then(setProjections)
       .catch(() => setProjections([]));
 
-    fetch(`${apiBaseUrl}/sources/health`)
+    apiFetch("/sources/health")
       .then((response) => (response.ok ? response.json() : []))
       .then(setSourceHealth)
       .catch(() => setSourceHealth([]));
@@ -61,7 +76,7 @@ function App() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [authToken]);
 
   const dates = useMemo(
     () => Array.from(new Set(projections.map((projection) => projection.projection_date))).sort(),
@@ -85,12 +100,60 @@ function App() {
   const runRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await fetch(`${apiBaseUrl}/refresh/run`, { method: "POST" });
+      await apiFetch("/refresh/run", { method: "POST" });
       loadData();
     } finally {
       setIsRefreshing(false);
     }
   };
+
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const username = String(form.get("username") ?? "");
+    const password = String(form.get("password") ?? "");
+    const token = btoa(`${username}:${password}`);
+    setLoginError("");
+    const response = await fetch(`${apiBaseUrl}/auth/check`, {
+      headers: { Authorization: `Basic ${token}` },
+    });
+    if (!response.ok) {
+      setLoginError("Login failed");
+      return;
+    }
+    localStorage.setItem("fantasy-auth-token", token);
+    setAuthToken(token);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("fantasy-auth-token");
+    setAuthToken("");
+    setProjections([]);
+    setSourceHealth([]);
+  };
+
+  if (!authToken) {
+    return (
+      <main className="login-shell">
+        <form className="login-panel" onSubmit={handleLogin}>
+          <p className="eyebrow">NBA Fantasy Odds</p>
+          <h1>Login</h1>
+          <input aria-label="Username" name="username" placeholder="Username" autoComplete="username" />
+          <input
+            aria-label="Password"
+            name="password"
+            placeholder="Password"
+            type="password"
+            autoComplete="current-password"
+          />
+          <button className="refresh-button" type="submit">
+            Sign in
+          </button>
+          {loginError ? <p className="login-error">{loginError}</p> : null}
+        </form>
+      </main>
+    );
+  }
 
   return (
     <main className="app-shell">
@@ -99,9 +162,14 @@ function App() {
           <p className="eyebrow">NBA Fantasy Odds</p>
           <h1>FanTeam Projections</h1>
         </div>
-        <button className="refresh-button" disabled={isRefreshing} onClick={runRefresh}>
-          {isRefreshing ? "Refreshing" : "Refresh"}
-        </button>
+        <div className="topbar-actions">
+          <button className="secondary-button" onClick={logout}>
+            Logout
+          </button>
+          <button className="refresh-button" disabled={isRefreshing} onClick={runRefresh}>
+            {isRefreshing ? "Refreshing" : "Refresh"}
+          </button>
+        </div>
       </header>
 
       <section className="health-strip" aria-label="System status">

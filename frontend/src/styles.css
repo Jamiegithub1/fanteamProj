@@ -36,6 +36,11 @@ select {
   gap: 16px;
 }
 
+.topbar-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .eyebrow {
   color: #236c5b;
   font-size: 0.78rem;
@@ -56,6 +61,17 @@ h1 {
   border: 1px solid #172026;
   border-radius: 6px;
   color: white;
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+.secondary-button {
+  background: white;
+  border: 1px solid #c7d2d8;
+  border-radius: 6px;
+  color: #172026;
   cursor: pointer;
   font-weight: 700;
   min-height: 40px;
@@ -188,6 +204,39 @@ tr:hover td:first-child {
   text-align: center;
 }
 
+.login-shell {
+  align-items: center;
+  display: flex;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.login-panel {
+  background: white;
+  border: 1px solid #d6dee2;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  margin: 0 auto;
+  max-width: 360px;
+  padding: 28px;
+  width: 100%;
+}
+
+.login-panel input {
+  border: 1px solid #c7d2d8;
+  border-radius: 6px;
+  min-height: 40px;
+  padding: 0 10px;
+}
+
+.login-error {
+  color: #a83232;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     padding: 16px;
@@ -198,7 +247,12 @@ tr:hover td:first-child {
     flex-direction: column;
   }
 
+  .topbar-actions {
+    display: grid;
+  }
+
   .refresh-button,
+  .secondary-button,
   .toolbar input,
   .toolbar select,
   .status-pill {

@@ -68,6 +68,13 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Source-Health-Anzeige mit Status und Latenz
 - Refresh Button fuer den kompletten Backend-Zyklus
 
+## M10 Status
+
+- ENV-basierter Login ueber `APP_USERNAME` und `APP_PASSWORD`
+- Geschuetzte Backend-Endpunkte per HTTP Basic Auth
+- Frontend Login-Screen mit Logout
+- Healthchecks bleiben fuer Docker lokal erreichbar
+
 ## Lokal starten
 
 ```bash

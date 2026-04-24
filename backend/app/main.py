@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 
@@ -10,6 +10,7 @@ from app.db import database_ready, get_session
 from app.models import AggregatedOdd, Bookmaker, Player, Projection, SourceHealth, Team
 from app.projections import refresh_projections
 from app.scheduler import RefreshScheduler
+from app.security import require_auth
 from app.source_runner import refresh_source
 from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
@@ -49,7 +50,7 @@ def db_health() -> dict[str, str]:
 
 
 @app.get("/sources/health")
-def sources_health() -> list[dict[str, str | int | None]]:
+def sources_health(_: str = Depends(require_auth)) -> list[dict[str, str | int | None]]:
     with get_session() as session:
         rows = session.execute(select(Bookmaker, SourceHealth).join(SourceHealth)).all()
         return [
@@ -66,7 +67,7 @@ def sources_health() -> list[dict[str, str | int | None]]:
 
 
 @app.get("/projections")
-def list_projections() -> list[dict[str, str | int | float | None]]:
+def list_projections(_: str = Depends(require_auth)) -> list[dict[str, str | int | float | None]]:
     with get_session() as session:
         source_counts = dict(
             session.execute(
@@ -106,7 +107,7 @@ def list_projections() -> list[dict[str, str | int | float | None]]:
 
 
 @app.post("/sources/playzilla/refresh")
-def refresh_playzilla() -> dict[str, str | int | None]:
+def refresh_playzilla(_: str = Depends(require_auth)) -> dict[str, str | int | None]:
     with get_session() as session:
         result = refresh_source(session, PlayzillaAdapter(settings=settings))
         return {
@@ -119,7 +120,7 @@ def refresh_playzilla() -> dict[str, str | int | None]:
 
 
 @app.post("/sources/draftkings/refresh")
-def refresh_draftkings() -> dict[str, str | int | None]:
+def refresh_draftkings(_: str = Depends(require_auth)) -> dict[str, str | int | None]:
     with get_session() as session:
         result = refresh_source(session, DraftKingsAdapter(settings=settings))
         return {
@@ -132,21 +133,21 @@ def refresh_draftkings() -> dict[str, str | int | None]:
 
 
 @app.post("/aggregations/refresh")
-def refresh_aggregations() -> dict[str, int]:
+def refresh_aggregations(_: str = Depends(require_auth)) -> dict[str, int]:
     with get_session() as session:
         summary = refresh_aggregated_odds(session)
         return {"groups_seen": summary.groups_seen, "rows_written": summary.rows_written}
 
 
 @app.post("/projections/refresh")
-def refresh_projection_rows() -> dict[str, int]:
+def refresh_projection_rows(_: str = Depends(require_auth)) -> dict[str, int]:
     with get_session() as session:
         summary = refresh_projections(session)
         return {"players_seen": summary.players_seen, "rows_written": summary.rows_written}
 
 
 @app.post("/refresh/run")
-async def run_refresh_cycle() -> dict[str, int | str]:
+async def run_refresh_cycle(_: str = Depends(require_auth)) -> dict[str, int | str]:
     summary = await scheduler.run_once()
     if summary is None:
         return {"status": "already_running"}
@@ -156,6 +157,11 @@ async def run_refresh_cycle() -> dict[str, int | str]:
         "aggregation_rows": summary.aggregation_rows,
         "projection_rows": summary.projection_rows,
     }
+
+
+@app.get("/auth/check")
+def auth_check(username: str = Depends(require_auth)) -> dict[str, str]:
+    return {"status": "ok", "username": username}
 
 
 def _float(value) -> float | None:

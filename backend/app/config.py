@@ -10,6 +10,8 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://fantasy:fantasy_dev_password@localhost:5432/fantasy_odds",
         validation_alias="DATABASE_URL",
     )
+    app_username: str = Field(default="admin", validation_alias="APP_USERNAME")
+    app_password: str = Field(default="change-me", validation_alias="APP_PASSWORD")
     playzilla_enabled: bool = Field(default=True, validation_alias="PLAYZILLA_ENABLED")
     playzilla_base_url: str = Field(default="https://playzilla.com", validation_alias="PLAYZILLA_BASE_URL")
     playzilla_timeout_seconds: float = Field(default=15.0, validation_alias="PLAYZILLA_TIMEOUT_SECONDS")
