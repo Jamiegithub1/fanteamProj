@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     playzilla_refresh_interval_seconds: int = Field(
         default=900, validation_alias="PLAYZILLA_REFRESH_INTERVAL_SECONDS"
     )
+    draftkings_enabled: bool = Field(default=False, validation_alias="DRAFTKINGS_ENABLED")
+    draftkings_base_url: str = Field(
+        default="https://sportsbook.draftkings.com",
+        validation_alias="DRAFTKINGS_BASE_URL",
+    )
+    draftkings_region: str = Field(default="US-NJ-SB", validation_alias="DRAFTKINGS_REGION")
+    draftkings_timeout_seconds: float = Field(default=15.0, validation_alias="DRAFTKINGS_TIMEOUT_SECONDS")
+    draftkings_refresh_interval_seconds: int = Field(
+        default=900, validation_alias="DRAFTKINGS_REFRESH_INTERVAL_SECONDS"
+    )
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

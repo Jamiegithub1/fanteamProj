@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.db import database_ready, get_session
 from app.models import Bookmaker, SourceHealth
 from app.source_runner import refresh_source
+from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
 
 settings = get_settings()
@@ -52,6 +53,19 @@ def sources_health() -> list[dict[str, str | int | None]]:
 def refresh_playzilla() -> dict[str, str | int | None]:
     with get_session() as session:
         result = refresh_source(session, PlayzillaAdapter(settings=settings))
+        return {
+            "source": result.source_key,
+            "status": result.status,
+            "rows_found": len(result.odds),
+            "latency_ms": result.latency_ms,
+            "message": result.message,
+        }
+
+
+@app.post("/sources/draftkings/refresh")
+def refresh_draftkings() -> dict[str, str | int | None]:
+    with get_session() as session:
+        result = refresh_source(session, DraftKingsAdapter(settings=settings))
         return {
             "source": result.source_key,
             "status": result.status,

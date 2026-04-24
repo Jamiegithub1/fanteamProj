@@ -33,6 +33,13 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Speicherung von Raw Odds, Refresh Runs und Source Health
 - Quellen-Endpunkte unter `/sources/health` und `/sources/playzilla/refresh`
 
+## M5 Status
+
+- DraftKings als zusaetzlicher modularer Quellen-Adapter
+- DraftKings standardmaessig deaktiviert, weil der leichte Live-Endpunkt auf diesem Server HTTP 403 liefert
+- Weitere Buchmacher bewertet und schwere/instabile Scraper bewusst uebersprungen
+- DraftKings-Refresh unter `/sources/draftkings/refresh`
+
 ## Lokal starten
 
 ```bash
