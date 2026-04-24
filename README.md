@@ -81,6 +81,12 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Frontend wartet auf gesunden Backend-Service
 - Lokale Deployment-Doku unter `docs/deployment-local.md`
 
+## M12 Status
+
+- End-to-End-Test fuer Raw Odds zu Aggregation zu Projection
+- Stabilitaetschecks fuer Tests, Frontend-Build, Docker Compose und Auth
+- Degraded Quellen crashen die App nicht und werden in Source Health sichtbar
+
 ## Lokal starten
 
 ```bash
