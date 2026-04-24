@@ -25,6 +25,14 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Outlier Detection
 - Confidence Score
 
+## M4 Status
+
+- Modulare Quellen-Adapter fuer Odds-Integrationen
+- Playzilla Pflichtquelle mit leichter SPA/WSDK-Discovery
+- NBA Player-Prop Parser fuer alle Phase-1-Maerkte
+- Speicherung von Raw Odds, Refresh Runs und Source Health
+- Quellen-Endpunkte unter `/sources/health` und `/sources/playzilla/refresh`
+
 ## Lokal starten
 
 ```bash
@@ -68,4 +76,4 @@ npm run build
 
 ## Konfiguration
 
-Login-/Passwort- und Datenbankwerte werden ueber ENV gesetzt. Scraper und Auth folgen in spaeteren Meilensteinen.
+Login-/Passwort-, Datenbank- und Playzilla-Werte werden ueber ENV gesetzt.
