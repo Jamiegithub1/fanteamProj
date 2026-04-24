@@ -47,6 +47,13 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Konsens-Wahrscheinlichkeiten, Expected Values und Confidence Score
 - Aggregations-Refresh unter `/aggregations/refresh`
 
+## M7 Status
+
+- FanTeam Projection Engine auf Basis von `aggregated_odds`
+- Double-/Triple-Double als wahrscheinlichkeitsgewichteter Bonus
+- Projektionen werden in `projections` gespeichert
+- Projection-Refresh unter `/projections/refresh`
+
 ## Lokal starten
 
 ```bash

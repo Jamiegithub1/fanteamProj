@@ -6,6 +6,7 @@ from app.aggregation import refresh_aggregated_odds
 from app.config import get_settings
 from app.db import database_ready, get_session
 from app.models import Bookmaker, SourceHealth
+from app.projections import refresh_projections
 from app.source_runner import refresh_source
 from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
@@ -81,3 +82,10 @@ def refresh_aggregations() -> dict[str, int]:
     with get_session() as session:
         summary = refresh_aggregated_odds(session)
         return {"groups_seen": summary.groups_seen, "rows_written": summary.rows_written}
+
+
+@app.post("/projections/refresh")
+def refresh_projection_rows() -> dict[str, int]:
+    with get_session() as session:
+        summary = refresh_projections(session)
+        return {"players_seen": summary.players_seen, "rows_written": summary.rows_written}
