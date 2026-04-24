@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     draftkings_refresh_interval_seconds: int = Field(
         default=900, validation_alias="DRAFTKINGS_REFRESH_INTERVAL_SECONDS"
     )
+    balldontlie_enabled: bool = Field(default=False, validation_alias="BALLDONTLIE_ENABLED")
+    balldontlie_api_key: str = Field(default="", validation_alias="BALLDONTLIE_API_KEY")
+    balldontlie_base_url: str = Field(default="https://api.balldontlie.io", validation_alias="BALLDONTLIE_BASE_URL")
+    balldontlie_timeout_seconds: float = Field(default=15.0, validation_alias="BALLDONTLIE_TIMEOUT_SECONDS")
+    balldontlie_refresh_interval_seconds: int = Field(
+        default=900, validation_alias="BALLDONTLIE_REFRESH_INTERVAL_SECONDS"
+    )
     scheduler_enabled: bool = Field(default=True, validation_alias="SCHEDULER_ENABLED")
     scheduler_regular_interval_seconds: int = Field(default=1800, validation_alias="SCHEDULER_REGULAR_INTERVAL_SECONDS")
     scheduler_prelock_interval_seconds: int = Field(default=300, validation_alias="SCHEDULER_PRELOCK_INTERVAL_SECONDS")

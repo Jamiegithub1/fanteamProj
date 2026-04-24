@@ -13,6 +13,7 @@ from app.scheduler import RefreshScheduler
 from app.security import require_auth
 from app.source_catalog import SOURCE_CATALOG
 from app.source_runner import refresh_source
+from app.sources.balldontlie import BallDontLieAdapter
 from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
 
@@ -144,6 +145,19 @@ def refresh_playzilla(_: str = Depends(require_auth)) -> dict[str, str | int | N
 def refresh_draftkings(_: str = Depends(require_auth)) -> dict[str, str | int | None]:
     with get_session() as session:
         result = refresh_source(session, DraftKingsAdapter(settings=settings))
+        return {
+            "source": result.source_key,
+            "status": result.status,
+            "rows_found": len(result.odds),
+            "latency_ms": result.latency_ms,
+            "message": result.message,
+        }
+
+
+@app.post("/sources/balldontlie/refresh")
+def refresh_balldontlie(_: str = Depends(require_auth)) -> dict[str, str | int | None]:
+    with get_session() as session:
+        result = refresh_source(session, BallDontLieAdapter(settings=settings))
         return {
             "source": result.source_key,
             "status": result.status,

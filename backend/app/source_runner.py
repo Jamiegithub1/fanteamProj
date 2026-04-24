@@ -27,7 +27,10 @@ def refresh_source(session: Session, adapter: SourceAdapter) -> SourceResult:
 
     if result.status in {"success", "degraded"}:
         for odd in result.odds:
-            persist_raw_odd(session, bookmaker, run, odd)
+            raw_bookmaker = bookmaker
+            if odd.bookmaker_key and odd.bookmaker_key != bookmaker.key:
+                raw_bookmaker = ensure_vendor_bookmaker(session, odd, adapter)
+            persist_raw_odd(session, raw_bookmaker, run, odd)
 
     update_source_health(session, bookmaker, result)
     session.flush()
@@ -66,6 +69,23 @@ def ensure_markets(session: Session) -> None:
                 is_enabled=True,
             )
         )
+
+
+def ensure_vendor_bookmaker(session: Session, odd: SourceOdd, adapter: SourceAdapter) -> Bookmaker:
+    if not odd.bookmaker_key:
+        raise ValueError("Vendor bookmaker key is required")
+    bookmaker = session.scalar(select(Bookmaker).where(Bookmaker.key == odd.bookmaker_key))
+    if bookmaker is None:
+        bookmaker = Bookmaker(
+            key=odd.bookmaker_key,
+            name=odd.bookmaker_name or odd.bookmaker_key.title(),
+            requires_browser=False,
+            refresh_interval_seconds=adapter.refresh_interval_seconds,
+            is_enabled=True,
+        )
+        session.add(bookmaker)
+        session.flush()
+    return bookmaker
 
 
 def persist_raw_odd(session: Session, bookmaker: Bookmaker, run: RefreshRun, odd: SourceOdd) -> RawOdd:

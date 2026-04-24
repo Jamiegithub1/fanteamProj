@@ -60,3 +60,43 @@ def test_refresh_source_persists_bookmaker_market_raw_odd_and_health() -> None:
     assert health is not None
     assert health.status == "success"
     assert health.consecutive_failures == 0
+
+
+def test_refresh_source_can_persist_vendor_bookmakers_from_aggregate_adapter() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    class AggregateAdapter:
+        source_key = "balldontlie"
+        source_name = "BALLDONTLIE Odds"
+        requires_browser = False
+        refresh_interval_seconds = 900
+
+        def fetch(self) -> SourceResult:
+            return SourceResult(
+                source_key=self.source_key,
+                odds=(
+                    SourceOdd(
+                        source_key=self.source_key,
+                        bookmaker_key="fanduel",
+                        bookmaker_name="FanDuel",
+                        player_name="Jayson Tatum",
+                        market_key="points",
+                        market_name="Points",
+                        side="over",
+                        line=Decimal("24.5"),
+                        decimal_odds=Decimal("1.91"),
+                        collected_at=datetime.now(UTC),
+                    ),
+                ),
+                status="success",
+            )
+
+    with Session(engine) as session:
+        refresh_source(session, AggregateAdapter())
+        session.commit()
+        bookmaker_keys = set(session.scalars(select(Bookmaker.key)).all())
+        raw_odd = session.scalar(select(RawOdd))
+
+    assert {"balldontlie", "fanduel"}.issubset(bookmaker_keys)
+    assert raw_odd is not None

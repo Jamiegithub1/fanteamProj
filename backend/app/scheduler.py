@@ -14,6 +14,7 @@ from app.db import get_session
 from app.models import Game
 from app.projections import refresh_projections
 from app.source_runner import refresh_source
+from app.sources.balldontlie import BallDontLieAdapter
 from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
 
@@ -75,7 +76,11 @@ def run_refresh_cycle(settings: Settings) -> RefreshCycleSummary:
 
 
 def _refresh_sources(session: Session, settings: Settings) -> int:
-    adapters = [PlayzillaAdapter(settings=settings), DraftKingsAdapter(settings=settings)]
+    adapters = [
+        PlayzillaAdapter(settings=settings),
+        BallDontLieAdapter(settings=settings),
+        DraftKingsAdapter(settings=settings),
+    ]
     for adapter in adapters:
         refresh_source(session, adapter)
     return len(adapters)

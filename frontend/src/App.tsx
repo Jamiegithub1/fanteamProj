@@ -272,6 +272,7 @@ function App() {
               <th>Player</th>
               <th>Team</th>
               <th>Date</th>
+              <th>Total Proj</th>
               <th>Points</th>
               <th>3PM</th>
               <th>Rebounds</th>
@@ -283,7 +284,6 @@ function App() {
               <th>Triple-Double</th>
               <th>Sources</th>
               <th>Confidence</th>
-              <th>Total Proj</th>
             </tr>
           </thead>
           <tbody>
@@ -299,6 +299,7 @@ function App() {
                   <td className="player-cell">{projection.player_name}</td>
                   <td>{projection.team ?? "-"}</td>
                   <td>{projection.projection_date}</td>
+                  <td className="strong total-cell">{formatNumber(projection.fantasy_points)}</td>
                   <td>{formatNumber(projection.points)}</td>
                   <td>{formatNumber(projection.threes_made)}</td>
                   <td>{formatNumber(projection.rebounds)}</td>
@@ -310,7 +311,6 @@ function App() {
                   <td>{formatPercent(projection.triple_double_probability)}</td>
                   <td>{projection.source_count}</td>
                   <td>{formatPercent(projection.confidence_score)}</td>
-                  <td className="strong total-cell">{formatNumber(projection.fantasy_points)}</td>
                 </tr>
               ))
             )}

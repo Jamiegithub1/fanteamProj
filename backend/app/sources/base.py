@@ -20,6 +20,8 @@ class SourceOdd:
     decimal_odds: Decimal | None = None
     event_id: str | None = None
     event_name: str | None = None
+    bookmaker_key: str | None = None
+    bookmaker_name: str | None = None
 
 
 @dataclass(frozen=True)
