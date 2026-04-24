@@ -16,6 +16,15 @@ Lokale Web-App fuer odds-basierte FanTeam NBA Projektionen.
 - Alembic Migration fuer PostgreSQL
 - Source-Health- und Refresh-Run-Tabellen fuer robuste Scraper
 
+## M3 Status
+
+- Odds-Math-Engine fuer American/Decimal Odds
+- Vig-freie Over/Under-Wahrscheinlichkeiten
+- Expected-Value-Approximation
+- Mean/Median Aggregation
+- Outlier Detection
+- Confidence Score
+
 ## Lokal starten
 
 ```bash
@@ -46,6 +55,8 @@ Migration:
 cd backend
 ../.venv/bin/alembic upgrade head
 ```
+
+Die Odds-Math-Engine liegt in `backend/app/odds_math.py` und ist als reine Python-Logik getestet.
 
 Frontend:
 
