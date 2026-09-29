@@ -18,6 +18,7 @@ from app.sources.balldontlie import BallDontLieAdapter
 from app.sources.betmgm import BetMGMAdapter
 from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
+from app.sources.playzilla_football import PlayzillaFootballWMAdapter
 from app.sources.propline import PropLineAdapter
 
 
@@ -80,6 +81,7 @@ def run_refresh_cycle(settings: Settings) -> RefreshCycleSummary:
 def _refresh_sources(session: Session, settings: Settings) -> int:
     adapters = [
         PlayzillaAdapter(settings=settings),
+        PlayzillaFootballWMAdapter(settings=settings),
         BallDontLieAdapter(settings=settings),
         PropLineAdapter(settings=settings),
         BetMGMAdapter(settings=settings),

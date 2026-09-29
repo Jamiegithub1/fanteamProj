@@ -18,16 +18,40 @@ class SourceCatalogEntry:
 
 SOURCE_CATALOG: tuple[SourceCatalogEntry, ...] = (
     SourceCatalogEntry(
+        key="playzilla_wm",
+        name="Playzilla – Football WM",
+        role="mandatory_bookmaker",
+        status="integrated_working",
+        cost="free",
+        access="Altenar WSDK HTTP discovery (same mechanism as playzilla NBA)",
+        coverage=(
+            "FIFA World Cup 2026: match result (1X2), total goals, BTTS, "
+            "clean sheet, anytime goalscorer, first goalscorer; "
+            "optional shots on target and assists where available"
+        ),
+        server_load="low",
+        reliability_notes=(
+            "Uses the same Playzilla/Altenar API as NBA. "
+            "Championship ID is auto-discovered or set via PLAYZILLA_WM_CHAMP_ID. "
+            "Returns degraded if the WM championship is not yet listed."
+        ),
+        implementation_notes=(
+            "Set PLAYZILLA_WM_CHAMP_ID in .env if auto-discovery fails. "
+            "Disable with PLAYZILLA_WM_ENABLED=false."
+        ),
+        priority=1,
+    ),
+    SourceCatalogEntry(
         key="playzilla",
         name="Playzilla",
         role="mandatory_bookmaker",
-        status="integrated_degraded",
+        status="integrated_working",
         cost="free",
-        access="lightweight Altenar WSDK HTTP discovery",
-        coverage="NBA sportsbook source; current lightweight payload exposes sport metadata but no player props",
+        access="Altenar WSDK HTTP discovery (no API key required)",
+        coverage="NBA player props: points, 3PM, rebounds, assists, steals, blocks, turnovers; ~1500 odds across all active NBA games",
         server_load="low",
-        reliability_notes="Mandatory source. It must stay isolated so Playzilla outages never crash the app.",
-        implementation_notes="Integrated as first-party adapter with source_health and refresh_runs.",
+        reliability_notes="Mandatory source. Fully working. Uses Altenar widget API via integration key discovered from JS bundle.",
+        implementation_notes="Adapter auto-discovers api_base_url from altenarWSDK.js; integration key is 'playzilla'. No credentials required.",
         priority=1,
     ),
     SourceCatalogEntry(
@@ -125,13 +149,13 @@ SOURCE_CATALOG: tuple[SourceCatalogEntry, ...] = (
         key="draftkings",
         name="DraftKings",
         role="major_us_bookmaker",
-        status="adapter_exists_edge_blocked",
-        cost="free_if_edge_allows",
-        access="undocumented sportsbook JSON endpoint; currently HTTP 403 from this server",
-        coverage="Top US player-prop book. Existing adapter parses known JSON shape but live edge blocks this host.",
+        status="adapter_exists_geo_blocked",
+        cost="free_if_us_ip",
+        access="undocumented sportsbook JSON endpoint; HTTP 403 from non-US IPs (geo-block)",
+        coverage="Top US player-prop book. Adapter is implemented but geo-blocked from Hetzner EU servers.",
         server_load="low",
-        reliability_notes="Keep disabled by default. Prefer aggregated vendor rows for reliability.",
-        implementation_notes="Existing direct adapter remains available behind DRAFTKINGS_ENABLED.",
+        reliability_notes="Keep disabled. Geo-block is enforced; would need a US proxy/VPN to work.",
+        implementation_notes="Existing direct adapter remains available behind DRAFTKINGS_ENABLED if running from a US IP.",
         priority=9,
     ),
     SourceCatalogEntry(

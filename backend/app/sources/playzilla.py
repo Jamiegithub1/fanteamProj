@@ -29,6 +29,20 @@ class PlayzillaDiscovery:
     integration_key: str | None
 
 
+PLAYZILLA_NBA_SPORT_ID = 67
+PLAYZILLA_NBA_CHAMP_ID = 2980
+
+ALTENAR_PLAYER_MARKETS = {
+    768: "points",
+    774: "threes_made",
+    772: "rebounds",
+    770: "assists",
+    773: "steals",
+    771: "blocks",
+    25050: "turnovers",
+}
+
+
 class PlayzillaAdapter:
     source_key = "playzilla"
     source_name = "Playzilla"
@@ -120,27 +134,48 @@ class PlayzillaAdapter:
         if not discovery.api_base_url or not discovery.integration_key:
             return ()
 
-        params = {
-            "ge3F6uCFVIZiI": discovery.integration_key,
-            "culture": "en-GB",
-            "timezoneOffset": "0",
-            "deviceType": "1",
-            "numFormat": "en-GB",
-            "integration": discovery.integration_key,
-            "sportTypeId": "12",
-        }
+        params = self._altenar_params(discovery.integration_key)
         response = self.client.get(
-            urljoin(discovery.api_base_url, "Widget/GetSportInfo"),
-            params=params,
+            urljoin(discovery.api_base_url, "widget/GetEventsByChamp"),
+            params={**params, "sportId": PLAYZILLA_NBA_SPORT_ID, "champIds": PLAYZILLA_NBA_CHAMP_ID},
             headers={"Accept": "application/json", "Referer": discovery.resolved_url},
         )
         if response.status_code in {401, 403, 555}:
             return ()
         response.raise_for_status()
         data = response.json()
-        return (data,) if isinstance(data, dict) else ()
+        if not isinstance(data, dict):
+            return ()
+
+        event_meta: dict[int, dict[str, Any]] = {
+            event["id"]: event
+            for event in data.get("events", [])
+            if isinstance(event, dict) and event.get("id")
+        }
+        payloads: list[dict[str, Any]] = []
+        for event_id in list(event_meta)[:12]:
+            detail_response = self.client.get(
+                urljoin(discovery.api_base_url, "widget/GetEventDetails"),
+                params={**params, "sportId": PLAYZILLA_NBA_SPORT_ID, "eventId": event_id},
+                headers={"Accept": "application/json", "Referer": discovery.resolved_url},
+            )
+            if detail_response.status_code in {401, 403, 555}:
+                continue
+            detail_response.raise_for_status()
+            detail_data = detail_response.json()
+            if isinstance(detail_data, dict):
+                meta = event_meta[event_id]
+                for date_key in ("startDate", "startTime", "kickOffDate", "date"):
+                    if date_key in meta and "_startDate" not in detail_data:
+                        detail_data["_startDate"] = meta[date_key]
+                payloads.append(detail_data)
+        return tuple(payloads)
 
     def parse_payload(self, payload: dict[str, Any]) -> tuple[SourceOdd, ...]:
+        altenar_odds = self._parse_altenar_event_details(payload)
+        if altenar_odds:
+            return altenar_odds
+
         collected_at = datetime.now(UTC)
         odds: list[SourceOdd] = []
         for market in _iter_market_nodes(payload):
@@ -181,6 +216,66 @@ class PlayzillaAdapter:
                 )
         return tuple(odds)
 
+    def _parse_altenar_event_details(self, payload: dict[str, Any]) -> tuple[SourceOdd, ...]:
+        if not payload.get("childMarkets") or not payload.get("odds"):
+            return ()
+
+        collected_at = datetime.now(UTC)
+        event_id = str(payload.get("id")) if payload.get("id") is not None else None
+        event_name = _first_text(payload, ("name",))
+        event_starts_at = _parse_altenar_datetime(
+            payload.get("_startDate") or payload.get("startDate") or payload.get("startTime") or payload.get("kickOffDate")
+        )
+        odds_by_id = {odd.get("id"): odd for odd in payload.get("odds", []) if isinstance(odd, dict)}
+        source_odds: list[SourceOdd] = []
+
+        for child_market in payload.get("childMarkets", []):
+            if not isinstance(child_market, dict):
+                continue
+            market_key = ALTENAR_PLAYER_MARKETS.get(child_market.get("typeId"))
+            if not market_key:
+                continue
+            player_name = _first_text(child_market, ("childName", "shortName"))
+            if not player_name:
+                continue
+            line = _sv_decimal(child_market.get("sv"))
+            for odd_id in _flatten_odd_ids(child_market.get("desktopOddIds") or child_market.get("mobileOddIds")):
+                odd = odds_by_id.get(odd_id)
+                if not odd or odd.get("oddStatus") not in {None, 0}:
+                    continue
+                side = _side_from_altenar_odd(odd)
+                decimal_odds = _first_decimal(odd, ("price",))
+                if not side or decimal_odds is None:
+                    continue
+                source_odds.append(
+                    SourceOdd(
+                        source_key=self.source_key,
+                        bookmaker_key=self.source_key,
+                        bookmaker_name=self.source_name,
+                        player_name=_clean_player_name(player_name),
+                        market_key=market_key,
+                        market_name=market_key.replace("_", " ").title(),
+                        side=side,
+                        line=_first_decimal(odd, ("sv",)) or line,
+                        decimal_odds=decimal_odds,
+                        event_id=event_id,
+                        event_name=event_name,
+                        event_starts_at=event_starts_at,
+                        collected_at=collected_at,
+                    )
+                )
+        return tuple(_dedupe_source_odds(source_odds))
+
+    def _altenar_params(self, integration_key: str) -> dict[str, str | int]:
+        return {
+            "ge3F6uCFVIZiI": integration_key,
+            "culture": "en-GB",
+            "timezoneOffset": "0",
+            "deviceType": "1",
+            "numFormat": "en-GB",
+            "integration": integration_key,
+        }
+
     def _find_wsdk_url(self, html: str, base_url: str) -> str | None:
         match = re.search(r"https://[^\"']*altenarWSDK\.js", html)
         if match:
@@ -189,8 +284,15 @@ class PlayzillaAdapter:
         return urljoin(base_url, match.group(1)) if match else None
 
     def _find_altenar_web_origin(self, script: str) -> str | None:
-        match = re.search(r'"web"\s*:\s*"(https://[^"]+/api/)"', script)
-        return match.group(1) if match else None
+        for pattern in (
+            r'"web"\s*:\s*"(https://[^"]+/api/)"',
+            r'(https://[^\"\s]*altenar[^\"\s]*/api/)',
+            r'(https://sb2frontend[^\"\s]+/api/)',
+        ):
+            match = re.search(pattern, script)
+            if match:
+                return match.group(1)
+        return None
 
     def _inspect_app_scripts(self, html: str, base_url: str) -> tuple[str | None, str | None]:
         wsdk_url = None
@@ -335,6 +437,15 @@ def _side_from_selection(selection: dict[str, Any]) -> OddSide | None:
     return None
 
 
+def _side_from_altenar_odd(odd: dict[str, Any]) -> OddSide | None:
+    type_id = _first_int(odd, ("typeId",))
+    if type_id == 2501:
+        return "over"
+    if type_id == 2502:
+        return "under"
+    return _side_from_selection(odd)
+
+
 def _player_name(selection: dict[str, Any], market: dict[str, Any]) -> str:
     for node in (selection, market):
         for key in ("playerName", "participantName", "competitorName", "name2"):
@@ -357,3 +468,53 @@ def _clean_player_name(value: str) -> str:
     cleaned = re.sub(r"\b(over|under|yes|no)\b", "", value, flags=re.IGNORECASE)
     cleaned = re.sub(r"\b\d+(?:\.\d+)?\b", "", cleaned)
     return " ".join(cleaned.replace("-", " ").split())
+
+
+def _sv_decimal(value: Any) -> Decimal | None:
+    """Parse Altenar sv field which can be '27.5|sa:player:nba-...' or just '27.5'."""
+    if value is None:
+        return None
+    raw = str(value).split("|")[0].strip()
+    try:
+        return Decimal(raw)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _flatten_odd_ids(value: Any) -> tuple[int, ...]:
+    ids: list[int] = []
+    if isinstance(value, list):
+        for item in value:
+            if isinstance(item, list):
+                ids.extend(_flatten_odd_ids(item))
+            elif isinstance(item, int):
+                ids.append(item)
+    return tuple(ids)
+
+
+def _dedupe_source_odds(odds: list[SourceOdd]) -> tuple[SourceOdd, ...]:
+    seen: set[tuple[str, str, str, Decimal | None, Decimal | None, int | None]] = set()
+    deduped: list[SourceOdd] = []
+    for odd in odds:
+        key = (odd.player_name, odd.market_key, odd.side, odd.line, odd.decimal_odds, odd.american_odds)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(odd)
+    return tuple(deduped)
+
+
+def _parse_altenar_datetime(value: Any) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.fromtimestamp(value / 1000, tz=UTC)
+        except (ValueError, OSError):
+            return None
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+        except ValueError:
+            return None
+    return None

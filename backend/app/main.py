@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from app.aggregation import refresh_aggregated_odds
 from app.config import get_settings
 from app.db import database_ready, get_session
+from app.football_wm import get_wm_overview
 from app.models import AggregatedOdd, Bookmaker, Player, Projection, SourceHealth, Team
 from app.projections import refresh_projections
 from app.scheduler import RefreshScheduler
@@ -17,6 +18,7 @@ from app.sources.balldontlie import BallDontLieAdapter
 from app.sources.betmgm import BetMGMAdapter
 from app.sources.draftkings import DraftKingsAdapter
 from app.sources.playzilla import PlayzillaAdapter
+from app.sources.playzilla_football import PlayzillaFootballWMAdapter
 from app.sources.propline import PropLineAdapter
 
 settings = get_settings()
@@ -173,6 +175,25 @@ def refresh_balldontlie(_: str = Depends(require_auth)) -> dict[str, str | int |
 def refresh_propline(_: str = Depends(require_auth)) -> dict[str, str | int | None]:
     with get_session() as session:
         result = refresh_source(session, PropLineAdapter(settings=settings))
+        return {
+            "source": result.source_key,
+            "status": result.status,
+            "rows_found": len(result.odds),
+            "latency_ms": result.latency_ms,
+            "message": result.message,
+        }
+
+
+@app.get("/football/wm")
+def football_wm(_: str = Depends(require_auth)) -> dict[str, list]:
+    with get_session() as session:
+        return get_wm_overview(session)
+
+
+@app.post("/sources/playzilla_wm/refresh")
+def refresh_playzilla_wm(_: str = Depends(require_auth)) -> dict[str, str | int | None]:
+    with get_session() as session:
+        result = refresh_source(session, PlayzillaFootballWMAdapter(settings=settings))
         return {
             "source": result.source_key,
             "status": result.status,

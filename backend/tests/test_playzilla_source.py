@@ -1,10 +1,50 @@
-from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
 import httpx
 
-from app.sources.playzilla import PlayzillaAdapter
+from app.sources.playzilla import PlayzillaAdapter, PLAYZILLA_NBA_SPORT_ID, PLAYZILLA_NBA_CHAMP_ID
+
+
+def _make_altenar_payload(champ_id: int = PLAYZILLA_NBA_CHAMP_ID) -> dict:
+    """Minimal valid Altenar GetEventDetails payload with NBA player props."""
+    return {
+        "id": 99,
+        "name": "LAL @ BOS",
+        "childMarkets": [
+            {
+                "typeId": 768,
+                "childName": "Jayson Tatum",
+                "shortName": "Jayson Tatum (BOS)",
+                "sv": "27.5|sa:player:nba-1234|BOS",
+                "desktopOddIds": [[1001, 1002]],
+                "mobileOddIds": [[1001, 1002]],
+            }
+        ],
+        "odds": [
+            {"id": 1001, "typeId": 2501, "price": 1.91, "oddStatus": 0, "sv": "27.5"},
+            {"id": 1002, "typeId": 2502, "price": 1.91, "oddStatus": 0, "sv": "27.5"},
+        ],
+    }
+
+
+def _discovery_handler(request: httpx.Request) -> httpx.Response:
+    url = str(request.url)
+    if url == "https://playzilla.test/":
+        return httpx.Response(200, html='<script src="/main.js"></script>', request=request)
+    if url == "https://playzilla.test/main.js":
+        return httpx.Response(
+            200,
+            text='const cfg={altenarWidgetsConfig:{scriptUrl:"https://cdn.test/altenarWSDK.js",skinName:"playzilla_demo"}};',
+            request=request,
+        )
+    if url == "https://cdn.test/altenarWSDK.js":
+        return httpx.Response(
+            200,
+            text='window.origins={"web":"https://api.test/api/"};',
+            request=request,
+        )
+    raise AssertionError(f"Unexpected request: {url}")
 
 
 def test_playzilla_parser_extracts_required_player_prop_markets() -> None:
@@ -52,6 +92,18 @@ def test_playzilla_parser_extracts_required_player_prop_markets() -> None:
     assert odds[0].event_id == "evt-1"
 
 
+def test_playzilla_parser_handles_altenar_childmarkets_with_pipe_sv() -> None:
+    """sv field like '27.5|sa:player:nba-1234|BOS' must parse the line correctly."""
+    payload = _make_altenar_payload()
+    odds = PlayzillaAdapter().parse_payload(payload)
+
+    assert len(odds) == 2
+    assert odds[0].player_name == "Jayson Tatum"
+    assert odds[0].market_key == "points"
+    assert odds[0].line == Decimal("27.5")
+    assert {o.side for o in odds} == {"over", "under"}
+
+
 def test_playzilla_discovery_reads_wsdk_from_app_bundle() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if str(request.url) == "https://playzilla.test/":
@@ -59,7 +111,7 @@ def test_playzilla_discovery_reads_wsdk_from_app_bundle() -> None:
         if str(request.url) == "https://playzilla.test/main.js":
             return httpx.Response(
                 200,
-                text='const x="https://cdn.test/altenarWSDK.js";const cfg={integration:"playzilla_demo"};',
+                text='const x="https://cdn.test/altenarWSDK.js";const cfg={skinName:"playzilla_demo"};',
                 request=request,
             )
         if str(request.url) == "https://cdn.test/altenarWSDK.js":
@@ -85,27 +137,23 @@ def test_playzilla_discovery_reads_wsdk_from_app_bundle() -> None:
     assert discovery.integration_key == "playzilla_demo"
 
 
-def test_playzilla_fetch_degrades_when_validation_blocks_lightweight_api() -> None:
+def test_playzilla_fetch_degrades_when_get_events_returns_auth_error() -> None:
+    """401/403 from GetEventsByChamp must degrade gracefully, not crash."""
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
         if url == "https://playzilla.test/":
+            return httpx.Response(200, html='<script src="/main.js"></script>', request=request)
+        if url == "https://playzilla.test/main.js":
             return httpx.Response(
                 200,
-                html=(
-                    '<script src="https://cdn.test/altenarWSDK.js"></script>'
-                    '<script>const cfg={integration:"playzilla_demo"};</script>'
-                ),
+                text='const x="https://cdn.test/altenarWSDK.js";const cfg={skinName:"demo"};',
                 request=request,
             )
         if url == "https://cdn.test/altenarWSDK.js":
-            return httpx.Response(
-                200,
-                text='window.altenarWSDKOrigins={"web":"https://api.test/api/"};',
-                request=request,
-            )
-        if url.startswith("https://api.test/api/Widget/GetSportInfo"):
+            return httpx.Response(200, text='{"web":"https://api.test/api/"}', request=request)
+        if "GetEventsByChamp" in url:
             return httpx.Response(401, request=request)
-        raise AssertionError(f"Unexpected request: {request.url}")
+        raise AssertionError(f"Unexpected request: {url}")
 
     settings = SimpleNamespace(
         playzilla_enabled=True,
@@ -119,30 +167,27 @@ def test_playzilla_fetch_degrades_when_validation_blocks_lightweight_api() -> No
 
     assert result.status == "degraded"
     assert result.odds == ()
-    assert "validation token" in result.message
 
 
-def test_playzilla_fetch_degrades_when_payload_has_no_player_props() -> None:
+def test_playzilla_fetch_degrades_when_no_player_props_in_payload() -> None:
+    """If events exist but contain no player prop childMarkets, status is degraded."""
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
         if url == "https://playzilla.test/":
+            return httpx.Response(200, html='<script src="/main.js"></script>', request=request)
+        if url == "https://playzilla.test/main.js":
             return httpx.Response(
                 200,
-                html=(
-                    '<script src="https://cdn.test/altenarWSDK.js"></script>'
-                    '<script>const cfg={skinName:"playzilla"};</script>'
-                ),
+                text='const x="https://cdn.test/altenarWSDK.js";const cfg={skinName:"demo"};',
                 request=request,
             )
         if url == "https://cdn.test/altenarWSDK.js":
-            return httpx.Response(
-                200,
-                text='window.altenarWSDKOrigins={"web":"https://api.test/api/"};',
-                request=request,
-            )
-        if url.startswith("https://api.test/api/Widget/GetSportInfo"):
-            return httpx.Response(200, json={"sports": [{"id": 67, "typeId": 12}]}, request=request)
-        raise AssertionError(f"Unexpected request: {request.url}")
+            return httpx.Response(200, text='{"web":"https://api.test/api/"}', request=request)
+        if "GetEventsByChamp" in url:
+            return httpx.Response(200, json={"events": [{"id": 99}]}, request=request)
+        if "GetEventDetails" in url:
+            return httpx.Response(200, json={"id": 99, "childMarkets": [], "odds": []}, request=request)
+        raise AssertionError(f"Unexpected request: {url}")
 
     settings = SimpleNamespace(
         playzilla_enabled=True,

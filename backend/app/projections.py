@@ -4,6 +4,10 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from math import exp, factorial
+from zoneinfo import ZoneInfo
+
+_DISPLAY_TZ = ZoneInfo("Europe/Berlin")
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -35,7 +39,45 @@ STAT_COLUMNS = {
 }
 
 
+_DD_TD_STATS = ["points", "rebounds", "assists", "steals", "blocks"]
+
+
+def _poisson_ge_10(lam: float) -> float:
+    if lam <= 0:
+        return 0.0
+    cdf = sum(exp(-lam) * lam**k / factorial(k) for k in range(10))
+    return max(0.0, 1.0 - cdf)
+
+
+def _estimate_dd_td(values: dict[str, Decimal | None]) -> tuple[Decimal, Decimal]:
+    probs = [
+        _poisson_ge_10(float(values[s])) if values.get(s) is not None else 0.0
+        for s in _DD_TD_STATS
+    ]
+    n = len(probs)
+    dd_prob = td_prob = 0.0
+    for mask in range(1 << n):
+        p = 1.0
+        count = 0
+        for i in range(n):
+            if mask & (1 << i):
+                p *= probs[i]
+                count += 1
+            else:
+                p *= 1.0 - probs[i]
+        if count >= 2:
+            dd_prob += p
+        if count >= 3:
+            td_prob += p
+    return Decimal(str(round(dd_prob, 6))), Decimal(str(round(td_prob, 6)))
+
+
 def refresh_projections(session: Session) -> ProjectionSummary:
+    all_market_weights: dict[str, Decimal] = {
+        m.key: m.fanteam_scoring_weight
+        for m in session.scalars(select(OddsMarket)).all()
+    }
+
     rows = session.execute(select(AggregatedOdd, OddsMarket).join(OddsMarket)).all()
     grouped: dict[_ProjectionSlice, list[tuple[AggregatedOdd, OddsMarket]]] = defaultdict(list)
     for aggregated, market in rows:
@@ -48,7 +90,7 @@ def refresh_projections(session: Session) -> ProjectionSummary:
     for player_slice, markets in grouped.items():
         if next_game_by_player.get(player_slice.player_id) != player_slice.game_id:
             continue
-        session.add(build_projection(session, player_slice, markets, calculated_at))
+        session.add(build_projection(session, player_slice, markets, calculated_at, all_market_weights))
         rows_written += 1
     session.flush()
     return ProjectionSummary(players_seen=len({key.player_id for key in grouped}), rows_written=rows_written)
@@ -59,6 +101,7 @@ def build_projection(
     player_slice: _ProjectionSlice,
     markets: list[tuple[AggregatedOdd, OddsMarket]],
     calculated_at: datetime,
+    all_market_weights: dict[str, Decimal] | None = None,
 ) -> Projection:
     values: dict[str, Decimal | None] = {column: None for column in STAT_COLUMNS.values()}
     double_double_probability = None
@@ -66,20 +109,36 @@ def build_projection(
     fantasy_points = Decimal("0")
     confidence_values: list[Decimal] = []
 
+    market_weight: dict[str, Decimal] = {}
     for aggregated, market in markets:
+        market_weight[market.key] = market.fanteam_scoring_weight
         if aggregated.confidence_score is not None:
             confidence_values.append(aggregated.confidence_score)
         if market.key in STAT_COLUMNS and aggregated.expected_value is not None:
             column = STAT_COLUMNS[market.key]
-            value = aggregated.expected_value
-            values[column] = value
-            fantasy_points += value * market.fanteam_scoring_weight
+            values[column] = aggregated.expected_value
         elif market.key == "double_double" and aggregated.over_probability is not None:
             double_double_probability = aggregated.over_probability
-            fantasy_points += aggregated.over_probability * market.fanteam_scoring_weight
         elif market.key == "triple_double" and aggregated.over_probability is not None:
             triple_double_probability = aggregated.over_probability
-            fantasy_points += aggregated.over_probability * market.fanteam_scoring_weight
+
+    effective_weights = dict(all_market_weights or {})
+    effective_weights.update(market_weight)
+
+    if double_double_probability is None or triple_double_probability is None:
+        est_dd, est_td = _estimate_dd_td(values)
+        if double_double_probability is None:
+            double_double_probability = est_dd
+        if triple_double_probability is None:
+            triple_double_probability = est_td
+
+    for stat_key, value in values.items():
+        if value is not None and stat_key in effective_weights:
+            fantasy_points += value * effective_weights[stat_key]
+    if double_double_probability is not None and "double_double" in effective_weights:
+        fantasy_points += double_double_probability * effective_weights["double_double"]
+    if triple_double_probability is not None and "triple_double" in effective_weights:
+        fantasy_points += triple_double_probability * effective_weights["triple_double"]
 
     projection_date = _projection_date(session, player_slice.game_id, calculated_at.date())
     confidence = None
@@ -118,10 +177,11 @@ def _next_game_by_player(session: Session, slices: set[_ProjectionSlice] | list[
 
     next_game: dict[int, int | None] = {}
     for player_id, player_game_ids in by_player.items():
-        if None in player_game_ids:
+        real_game_ids = [g for g in player_game_ids if g is not None]
+        if not real_game_ids:
             next_game[player_id] = None
             continue
-        next_game[player_id] = min(player_game_ids, key=lambda game_id: games[game_id].starts_at if game_id in games else datetime.max)
+        next_game[player_id] = min(real_game_ids, key=lambda game_id: games[game_id].starts_at if game_id in games else datetime.max)
     return next_game
 
 
@@ -131,4 +191,4 @@ def _projection_date(session: Session, game_id: int | None, fallback: date) -> d
     game = session.get(Game, game_id)
     if game is None:
         return fallback
-    return game.starts_at.date()
+    return game.starts_at.astimezone(_DISPLAY_TZ).date()

@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     betmgm_sport_id: str = Field(default="", validation_alias="BETMGM_SPORT_ID")
     betmgm_timeout_seconds: float = Field(default=15.0, validation_alias="BETMGM_TIMEOUT_SECONDS")
     betmgm_refresh_interval_seconds: int = Field(default=900, validation_alias="BETMGM_REFRESH_INTERVAL_SECONDS")
+    playzilla_wm_enabled: bool = Field(default=True, validation_alias="PLAYZILLA_WM_ENABLED")
+    playzilla_wm_champ_id: int | None = Field(default=None, validation_alias="PLAYZILLA_WM_CHAMP_ID")
+    playzilla_wm_sport_id: int = Field(default=66, validation_alias="PLAYZILLA_WM_SPORT_ID")
+    playzilla_wm_timeout_seconds: float = Field(default=20.0, validation_alias="PLAYZILLA_WM_TIMEOUT_SECONDS")
+    playzilla_wm_refresh_interval_seconds: int = Field(
+        default=1800, validation_alias="PLAYZILLA_WM_REFRESH_INTERVAL_SECONDS"
+    )
     scheduler_enabled: bool = Field(default=True, validation_alias="SCHEDULER_ENABLED")
     scheduler_regular_interval_seconds: int = Field(default=1800, validation_alias="SCHEDULER_REGULAR_INTERVAL_SECONDS")
     scheduler_prelock_interval_seconds: int = Field(default=300, validation_alias="SCHEDULER_PRELOCK_INTERVAL_SECONDS")

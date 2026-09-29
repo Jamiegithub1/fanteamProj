@@ -1,12 +1,13 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.models import Bookmaker, OddsMarket, Player, RawOdd, RefreshRun, SourceHealth
+from app.models import Bookmaker, Game, OddsMarket, Player, RawOdd, RefreshRun, SourceHealth, Team
 from app.odds_math import american_to_probability, decimal_to_probability
 from app.sources.base import SourceAdapter, SourceOdd, SourceResult
+from app.sources.football_markets import FOOTBALL_WM_MARKETS
 from app.sources.markets import MARKETS
 
 
@@ -26,6 +27,7 @@ def refresh_source(session: Session, adapter: SourceAdapter) -> SourceResult:
     run.error_message = result.message
 
     if result.status in {"success", "degraded"}:
+        session.execute(delete(RawOdd).where(RawOdd.bookmaker_id == bookmaker.id))
         for odd in result.odds:
             raw_bookmaker = bookmaker
             if odd.bookmaker_key and odd.bookmaker_key != bookmaker.key:
@@ -57,7 +59,7 @@ def ensure_bookmaker(session: Session, adapter: SourceAdapter) -> Bookmaker:
 
 def ensure_markets(session: Session) -> None:
     existing = set(session.scalars(select(OddsMarket.key)).all())
-    for market in MARKETS:
+    for market in (*MARKETS, *FOOTBALL_WM_MARKETS):
         if market.key in existing:
             continue
         session.add(
@@ -93,10 +95,12 @@ def persist_raw_odd(session: Session, bookmaker: Bookmaker, run: RefreshRun, odd
     market = session.scalar(select(OddsMarket).where(OddsMarket.key == odd.market_key))
     if market is None:
         raise ValueError(f"Unknown odds market: {odd.market_key}")
+    game_id = ensure_game(session, odd)
     raw_odd = RawOdd(
         bookmaker_id=bookmaker.id,
         market_id=market.id,
         player_id=player.id,
+        game_id=game_id,
         refresh_run_id=run.id,
         line=odd.line,
         side=odd.side,
@@ -118,6 +122,9 @@ def ensure_player(session: Session, odd: SourceOdd) -> Player:
         player = Player(external_id=external_id, name=odd.player_name, is_active=True)
         session.add(player)
         session.flush()
+    if odd.team_name and not player.team_id:
+        team = ensure_team(session, odd.team_name)
+        player.team_id = team.id
     return player
 
 
@@ -147,6 +154,58 @@ def implied_probability(odd: SourceOdd) -> Decimal | None:
     if odd.decimal_odds is not None:
         return decimal_to_probability(odd.decimal_odds)
     return None
+
+
+def ensure_game(session: Session, odd: SourceOdd) -> int | None:
+    if not odd.event_id or not odd.event_starts_at:
+        return None
+    existing = session.scalar(select(Game).where(Game.nba_game_id == odd.event_id))
+    if existing:
+        return existing.id
+    if not odd.event_name:
+        return None
+    home_abbr, away_abbr = _parse_event_teams(odd.event_name)
+    if not home_abbr or not away_abbr:
+        return None
+    home_team = ensure_team(session, home_abbr)
+    away_team = ensure_team(session, away_abbr)
+    game = Game(
+        home_team_id=home_team.id,
+        away_team_id=away_team.id,
+        starts_at=odd.event_starts_at,
+        nba_game_id=odd.event_id,
+    )
+    session.add(game)
+    session.flush()
+    return game.id
+
+
+def _parse_event_teams(event_name: str) -> tuple[str, str]:
+    """Parse 'HOME vs. AWAY' or 'AWAY @ HOME' into (home_abbr, away_abbr)."""
+    for sep, home_idx, away_idx in ((" @ ", 1, 0), (" vs. ", 0, 1), (" vs ", 0, 1)):
+        if sep in event_name:
+            parts = event_name.split(sep, 1)
+            home = _first_word(parts[home_idx])
+            away = _first_word(parts[away_idx])
+            return home, away
+    return "", ""
+
+
+def _first_word(value: str) -> str:
+    word = value.strip().split()[0] if value.strip() else ""
+    return "".join(c for c in word if c.isalpha()).upper()
+
+
+def ensure_team(session: Session, abbreviation: str) -> Team:
+    # abbreviation is limited to 8 chars by the DB column; for football country
+    # names that are longer we truncate (NBA codes are always ≤ 3 chars).
+    abbr = abbreviation[:8]
+    team = session.scalar(select(Team).where(Team.abbreviation == abbr))
+    if team is None:
+        team = Team(name=abbreviation, abbreviation=abbr)
+        session.add(team)
+        session.flush()
+    return team
 
 
 def slugify(value: str) -> str:
